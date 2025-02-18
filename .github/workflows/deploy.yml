@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: Deploy
 
 on:
@@ -26,6 +25,12 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm install axios
       - name: Deploy to dev
         run: |
           chmod +x ./deploy.sh
@@ -45,6 +50,12 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm install axios
       - name: Deploy to staging
         run: |
           chmod +x ./deploy.sh
@@ -55,7 +66,7 @@ jobs:
       - name: Check deployment
         run: node scripts/check-env.js
         env:
-            DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
 
   deploy-prod:
     needs: deploy-staging
@@ -64,6 +75,12 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm install axios
       - name: Deploy to production
         run: |
           chmod +x ./deploy.sh
@@ -75,6 +92,7 @@ jobs:
         run: node scripts/check-env.js
         env:
           DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+
   rollback:
     needs: [deploy-staging, deploy-prod]
     if: failure()
@@ -85,4 +103,3 @@ jobs:
         run: |
           chmod +x ./rollback.sh
           ./rollback.sh ${{ github.event.workflow_run.conclusion == 'failure' && 'prod' || 'staging' }} ${{ github.sha }}
-  
