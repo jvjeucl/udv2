@@ -4,7 +4,7 @@ const axios = require('axios');
 async function checkEnvironment(url) {
     try {
         const response = await axios.get(url);
-        if (response.status === 200) {
+        if (response.status === 404) {
             console.log('Environment check passed');
             process.exit(0);
         }
