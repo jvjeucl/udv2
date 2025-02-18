@@ -9,7 +9,7 @@ async function checkEnvironment(url) {
             process.exit(0);
         }
     } catch (error) {
-        console.error('Environment check failed');
+        console.error('Environment check failed url: ' + url + ' status: ' + response.status);
         process.exit(1);
     }
 }
