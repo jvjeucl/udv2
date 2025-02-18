@@ -1,0 +1,88 @@
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - run: npm ci
+      - run: npm test
+
+  deploy-dev:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: development
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy to dev
+        run: |
+          chmod +x ./deploy.sh
+          ./deploy.sh dev
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+      - name: Check deployment
+        run: node scripts/check-env.js
+        env:
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+
+  deploy-staging:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy to staging
+        run: |
+          chmod +x ./deploy.sh
+          ./deploy.sh staging
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+      - name: Check deployment
+        run: node scripts/check-env.js
+        env:
+            DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+
+  deploy-prod:
+    needs: deploy-staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy to production
+        run: |
+          chmod +x ./deploy.sh
+          ./deploy.sh prod
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+      - name: Check deployment
+        run: node scripts/check-env.js
+        env:
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+  rollback:
+    needs: [deploy-staging, deploy-prod]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Rollback deployment
+        run: |
+          chmod +x ./rollback.sh
+          ./rollback.sh ${{ github.event.workflow_run.conclusion == 'failure' && 'prod' || 'staging' }} ${{ github.sha }}
+  
